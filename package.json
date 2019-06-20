@@ -1,0 +1,35 @@
+{
+  "name": "emerj-spa",
+  "version": "0.0.0",
+  "description": "Tiny framework for single-page apps using emerj",
+  "main": "index.js",
+  "scripts": {
+    "test": "npx standard && npx tap --cov test*.js test/*.js",
+    "tap": "npx tap --cov test*.js test/*.js",
+    "coveralls": "export COVERALLS_REPO_TOKEN=; npx tap --cov test*.js test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sandhawke/emerj-spa.git"
+  },
+  "keywords": [
+    "sandhawke"
+  ],
+  "author": "Sandro Hawke (http://hawke.org/sandro)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/sandhawke/emerj-spa/issues"
+  },
+  "homepage": "https://github.com/sandhawke/emerj-spa#readme",
+  "devDependencies": {
+    "delay": "^4.3.0",
+    "tape": "^4.9.1"
+  },
+  "dependencies": {
+    "debug": "^4.1.0",
+    "emerj": "^1.0.0",
+    "escape-html-template-tag": "^1.1.0",
+    "eventemitter3": "^4.0.0",
+    "when-dom-ready": "^1.2.12"
+  }
+}
