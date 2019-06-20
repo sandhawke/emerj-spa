@@ -1,6 +1,6 @@
 {
   "name": "emerj-spa",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Tiny framework for single-page apps using emerj",
   "main": "index.js",
   "scripts": {
