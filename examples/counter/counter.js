@@ -3,7 +3,7 @@ function createState () {
   return { count: 0 }
 }
 
-function render ({state, H, view}) {
+function render ({ state, H, view }) {
   ++state.count
   view.stateChanged()
   return H`
@@ -15,4 +15,3 @@ rendered ${state.count} time${state.count > 1 ? 's' : ''}.
 }
 
 module.exports = { render, createState }
-

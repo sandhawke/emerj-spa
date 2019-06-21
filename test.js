@@ -1,13 +1,41 @@
 const test = require('tape')
 const my = require('.')
-const delay = require('delay')
-const fs = require('fs')
+const EventEmitter = require('eventemitter3')
 
-test(async (t) => {
-  require('./examples/counter/index')
-  my.stopNode()
-  await delay(2000)
-  const text = fs.readFileSync('_page_snapshot.html', 'utf8')
-  t.equal(text, '<!doctype html>\n<html>\n  <head>\n    <meta charset="UTF-8">\n    <meta name="viewport" content="width=device-width, initial-scale=1">\n  </head>\n  <body>\n    <div id="root"><p>This text has been rendered 1 times</p></div>\n  </body>\n</html>')
-  t.end()
+let events
+let hook
+function log (...args) {
+  // console.log(args)
+  events.push(args)
+  hook()
+}
+
+test('using state.emit(change)', async (t) => {
+  events = []
+  hook = () => { }
+  my.setMerge(log)
+
+  my.addView('n/a', { render, createState })
+  function render ({ state }) {
+    ++state.count
+    if (state.count === 5) {
+      my.shutdown()
+      t.deepEqual(events, [
+        [ 'nodejs', 'Count is 1' ],
+        [ 'nodejs', 'Count is 2' ],
+        [ 'nodejs', 'Count is 3' ],
+        [ 'nodejs', 'Count is 4' ]
+      ])
+      t.end()
+    }
+    setTimeout(() => {
+      state.emit('change')
+    }, 100)
+    return `Count is ${state.count}`
+  }
+  function createState () {
+    const state = new EventEmitter()
+    state.count = 0
+    return state
+  }
 })

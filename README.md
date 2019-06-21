@@ -10,26 +10,13 @@ awesome and when I use it in Single Page Apps, I tend to write the
 same code over and over again.  This is that code. (I didn't write
 emerj. I once wrote something like it, but emerj is better.)
 
-## Example
+See example apps.  I'll document this later, if it seems to work out.
 
-Here's the example in ./examples/counter/index.js:
-
-```js
-const { setup, H } = require('emerj-spa')
-
-function renderApp (state) {
-  if (!state.counter) state.counter = 1
-  setTimeout(() => state.emit('change'), 100)
-  return H`<p>This text has been rendered ${state.counter++} times</p>`
-}
-
-setup({renderApp})
-```
-
-Then view it something like this:
+Maybe start with:
 
 ```terminal
 $ curl -O https://raw.githubusercontent.com/sandhawke/emerj-spa/master/index.html
+$ curl -O https://raw.githubusercontent.com/sandhawke/emerj-spa/master/index.js
 $ watchify -v --debug index.js -o _bundle.js &
 $ opn index.html
 ```

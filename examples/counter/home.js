@@ -6,7 +6,7 @@ function createState () {
   return []
 }
 
-function render ({state, view}) {
+function render ({ state, view }) {
   const out = []
   out.push(`<button onclick="${view.globalize(addCounter)}()">Add Counter</button>`)
   for (const id of state) out.push(`<div id=${id}></div>`)

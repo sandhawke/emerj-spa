@@ -9,50 +9,56 @@ let callSoon
 let merge
 let shutdown
 let globals
+let whenReady
+let getElement
 
-if (typeof window === 'object')  {
+if (typeof window === 'object') {
   callSoon = window.requestAnimationFrame
   merge = emerj.merge.bind(emerj)
   shutdown = () => console.error('shutdown called but not implemented')
   globals = window
+  whenReady = whenDomReady
+  getElement = x => document.getElementById(x)
 } else {
   let pleaseStop = false
-  callSoon = f => {if (!pleaseStop) setTimeout(f, 100)}
+  callSoon = f => { if (!pleaseStop) setTimeout(f, 100) }
   shutdown = () => { pleaseStop = true }
   // could use emerj with cheerio maybe if we actually need to see page?
   merge = () => {
     console.log('running %s', __filename)
   }
   globals = {}
+  whenReady = async function () {}
+  getElement = x => 'nodejs'
 }
 
 // for test harness
 function setMerge (f) { merge = f }
 
-////////////////////////////////////////////////////////////////
+/// /////////////////////////////////////////////////////////////
 
 let idCounter = 0
 
 class View {
   constructor (id, config) {
     // console.log('View ctor', id, config)
-    this.id  = id
+    this.id = id
     this.createState = () => ({}) // or EventEmitter?  hm.
     Object.assign(this, config)
     // console.log('this =', this)
-    
+
     if (typeof id !== 'string') throw TypeError()
     if (typeof this.render !== 'function') throw TypeError()
     if (this.createState &&
         typeof this.createState !== 'function') throw TypeError()
 
-    this.state = this.createState({view: this})
+    this.state = this.createState({ view: this })
 
-    if (this.state.addEventListener) {
-      this.listener = () => this.stateChanged()
-      this.state.addEventListener('change', this.listener)
+    if (this.state.addListener) {
+      this.listener = () => { this.stateChanged() }
+      this.state.addListener('change', this.listener)
     }
-    
+
     this.changed = true
   }
   stateChanged () {
@@ -63,12 +69,12 @@ class View {
   }
   close () {
     if (this.listener) {
-      this.state.removeEventListener('change', this.listener)
+      this.state.removeListener('change', this.listener)
     }
   }
   paint () {
     if (!this.element) {
-      this.element = document.getElementById(this.id)
+      this.element = getElement(this.id)
       // might be undefined because element hasn't been created
       // yet.  we should pick it up on a future animation frame.
     }
@@ -77,7 +83,7 @@ class View {
       const arg = {
         state: this.state,
         view: this,
-        escapeHTML: H,  // I love the trick of putting this here
+        escapeHTML: H, // I love the trick of putting this here
         H
       }
       let html = this.render(arg)
@@ -109,9 +115,8 @@ function addView (...args) {
 }
 
 async function startLoop (v) {
-  await whenDomReady()
+  await whenReady()
   v.paint()
 }
 
-module.exports = { addView, setMerge }
-
+module.exports = { addView, setMerge, shutdown }

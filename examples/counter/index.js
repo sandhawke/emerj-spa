@@ -35,9 +35,9 @@ function renderCounter ({state, H, view}) {
   ++state.count
   view.stateChanged()
   return H`
-<p>This text has been 
+<p>This text has been
 rendered ${state.count} time${state.count > 1 ? 's' : ''}.
-   
+
 <button onclick="${view.globalize(state.close)}()">&times;</button></p>
 `
 }
