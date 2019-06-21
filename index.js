@@ -1,110 +1,117 @@
-/*
-
-In script mode, this gets browserfied by itself, and you provide:
-
-window.renderApp -- a function given the appState, which should return
-the new HTML for the body of the page. This will be called whenever
-there's a new frame after the appState has emitted a 'change' event.
-
-window.appState -- you can set this before domready to be any
-EventEmitter. If you leave it alone, it will default to a new
-EventEmitter. You'll have to do appState.emit('change') after any
-data change you do.
-
-In package mode, it returns { setup } which you can call to set the
-renderApp and initial appState without touching the window object, if
-you like.
-
-It adds .H to the appState and to window, as the brilliant
-escape-html-template-tag module.
-
- */
-
 const emerj = require('emerj')
 const H = require('escape-html-template-tag')
 const whenDomReady = require('when-dom-ready')
-const EventEmitter = require('eventemitter3')
+// const EventEmitter = require('eventemitter3')
 
-let nodeStop = false
-let windowObj = {}
-if (typeof window === 'object') windowObj = window
+// things that behave different in browser and in node.js
 
-function setup (options) {
-  const state = options.appState || windowObj.appState || new EventEmitter()
-  const render = options.renderApp || windowObj.renderApp
-  if (typeof render !== 'function') throw Error('renderApp not a function')
+let callSoon
+let merge
+let shutdown
+let globals
 
-  // Just make H available to everyone because it's so wonderful
-  state.H = H
-  windowObj.H = H
-
-  let rootElement
-
-  let dbChanged = true
-  function touch () {
-    dbChanged = true
-    // console.log('db changed')
+if (typeof window === 'object')  {
+  callSoon = window.requestAnimationFrame
+  merge = emerj.merge.bind(emerj)
+  shutdown = () => console.error('shutdown called but not implemented')
+  globals = window
+} else {
+  let pleaseStop = false
+  callSoon = f => {if (!pleaseStop) setTimeout(f, 100)}
+  shutdown = () => { pleaseStop = true }
+  // could use emerj with cheerio maybe if we actually need to see page?
+  merge = () => {
+    console.log('running %s', __filename)
   }
-  state.on('change', touch)
+  globals = {}
+}
 
-  function paint () {
-    if (rootElement && dbChanged) {
-      let html = render(state)
+// for test harness
+function setMerge (f) { merge = f }
+
+////////////////////////////////////////////////////////////////
+
+let idCounter = 0
+
+class View {
+  constructor (id, config) {
+    // console.log('View ctor', id, config)
+    this.id  = id
+    this.createState = () => ({}) // or EventEmitter?  hm.
+    Object.assign(this, config)
+    // console.log('this =', this)
+    
+    if (typeof id !== 'string') throw TypeError()
+    if (typeof this.render !== 'function') throw TypeError()
+    if (this.createState &&
+        typeof this.createState !== 'function') throw TypeError()
+
+    this.state = this.createState({view: this})
+
+    if (this.state.addEventListener) {
+      this.listener = () => this.stateChanged()
+      this.state.addEventListener('change', this.listener)
+    }
+    
+    this.changed = true
+  }
+  stateChanged () {
+    this.changed = true
+    // could do a thing where we use this instead of just
+    // polling, on the animation frame, but it'd be more
+    // complicated for trivial reduced load, I think.
+  }
+  close () {
+    if (this.listener) {
+      this.state.removeEventListener('change', this.listener)
+    }
+  }
+  paint () {
+    if (!this.element) {
+      this.element = document.getElementById(this.id)
+      // might be undefined because element hasn't been created
+      // yet.  we should pick it up on a future animation frame.
+    }
+    if (this.element && this.changed) {
+      this.changed = false
+      const arg = {
+        state: this.state,
+        view: this,
+        escapeHTML: H,  // I love the trick of putting this here
+        H
+      }
+      let html = this.render(arg)
       if (Array.isArray(html)) html = html.join('\n')
       if (typeof html !== 'string') html = html.toString()
-      dbChanged = false
-      emerj.merge(rootElement, html)
+
+      // what if the id is on a different element, or the element
+      // doesn't exist?
+
+      // console.log('calling merge', this.element, html)
+      merge(this.element, html)
     }
-    windowObj.requestAnimationFrame(paint)
+    callSoon(this.paint.bind(this))
   }
-
-  async function start () {
-    await whenDomReady()
-    rootElement = (document.getElementById('app') ||
-                   document.getElementById('root') ||
-                   document.getElementById('main'))
-    paint()
+  idGen () {
+    return 'emerjspa' + idCounter++
   }
-
-  // consider an isomophic solution instead
-  function nodeStart () {
-    console.log('running simulated browser app for node')
-    const fs = require('fs')
-
-    const filename = '_page_snapshot.html'
-    paint()
-
-    function paint () {
-      if (nodeStop) return
-      if (dbChanged) {
-        const html = render(state)
-        dbChanged = false
-        const text = `<!doctype html>
-<html>
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-  </head>
-  <body>
-    <div id="root">${html}</div>
-  </body>
-</html>`
-        fs.writeFileSync(filename, text, 'utf8')
-        console.log('wrote page HTML to', filename)
-      }
-      setTimeout(paint, 1000)
-    }
-  }
-
-  if (typeof window === 'undefined') {
-    nodeStart()
-  } else {
-    start()
+  globalize (value) {
+    const id = this.idGen()
+    globals[id] = value
+    return id
   }
 }
 
-function stopNode () {
-  nodeStop = true
+function addView (...args) {
+  const v = new View(...args)
+  startLoop(v)
+  return v
 }
 
-module.exports = { setup, H, EventEmitter, stopNode }
+async function startLoop (v) {
+  await whenDomReady()
+  v.paint()
+}
+
+module.exports = { addView, setMerge }
+
