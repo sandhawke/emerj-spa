@@ -1,7 +1,7 @@
 const emerj = require('emerj')
 const H = require('escape-html-template-tag')
 const whenDomReady = require('when-dom-ready')
-// const EventEmitter = require('eventemitter3')
+const EventEmitter = require('eventemitter3')
 
 // things that behave different in browser and in node.js
 
@@ -40,11 +40,12 @@ function setMerge (f) { merge = f }
 let idCounter = 0
 
 class View {
-  constructor (id, config) {
+  constructor (id, config, overlay) {
     // console.log('View ctor', id, config)
     this.id = id
-    this.createState = () => ({}) // or EventEmitter?  hm.
+    this.createState = () => (new EventEmitter())
     Object.assign(this, config)
+    if (overlay) Object.assign(this, overlay)
     // console.log('this =', this)
 
     if (typeof id !== 'string') throw TypeError()
@@ -52,10 +53,19 @@ class View {
     if (this.createState &&
         typeof this.createState !== 'function') throw TypeError()
 
-    this.state = this.createState({ view: this })
+    if (this.state) {
+      // console.log('this view already has its state')
+    } else {
+      // console.log('creating state')
+      this.state = this.createState({ view: this })
+    }
 
     if (this.state.addListener) {
-      this.listener = () => { this.stateChanged() }
+      // console.log('this view has an EE state')
+      this.listener = () => {
+        // console.log('state changed as seen by view', this.id)
+        this.stateChanged()
+      }
       this.state.addListener('change', this.listener)
     }
 
@@ -72,6 +82,12 @@ class View {
       this.state.removeListener('change', this.listener)
     }
   }
+  setHTML (html) {
+    this.changed = false
+    if (Array.isArray(html)) html = html.join('\n')
+    if (typeof html !== 'string') html = html.toString()
+    merge(this.element, html)
+  }
   paint () {
     if (!this.element) {
       this.element = getElement(this.id)
@@ -79,22 +95,20 @@ class View {
       // yet.  we should pick it up on a future animation frame.
     }
     if (this.element && this.changed) {
-      this.changed = false
       const arg = {
         state: this.state,
         view: this,
         escapeHTML: H, // I love the trick of putting this here
         H
       }
-      let html = this.render(arg)
-      if (Array.isArray(html)) html = html.join('\n')
-      if (typeof html !== 'string') html = html.toString()
 
-      // what if the id is on a different element, or the element
-      // doesn't exist?
-
-      // console.log('calling merge', this.element, html)
-      merge(this.element, html)
+      // console.log('painting', this.id)
+      const html = this.render(arg)
+      if (html === undefined || html === false) {
+        // assume setHTML was called, or no change was desired
+      } else {
+        this.setHTML(html)
+      }
     }
     callSoon(this.paint.bind(this))
   }
@@ -119,4 +133,4 @@ async function startLoop (v) {
   v.paint()
 }
 
-module.exports = { addView, setMerge, shutdown }
+module.exports = { addView, setMerge, shutdown, EventEmitter }
