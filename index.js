@@ -133,4 +133,4 @@ async function startLoop (v) {
   v.paint()
 }
 
-module.exports = { addView, setMerge, shutdown, EventEmitter }
+module.exports = { addView, setMerge, shutdown, EventEmitter, H }
